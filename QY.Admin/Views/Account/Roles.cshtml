@@ -1,0 +1,32 @@
+﻿@using QY.Admin.Models
+@model RolesViewModel
+@{
+    ViewBag.Title = "Roles";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<h2>分配管理员</h2>
+
+<div class="row">
+    <div class="col-md-8">
+        @using (Html.BeginForm("Roles", "Account", FormMethod.Post, new { @class = "form-horizontal", role = "form" }))
+        {
+            @Html.AntiForgeryToken()
+            <hr />
+            <span class="text-danger">@ViewBag.ErrorMsg</span>
+            <span class="text-info">@ViewBag.Success</span>
+            <div class="form-group">
+                @Html.LabelFor(m => m.userName, new { @class = "col-md-3 control-label" })
+                <div class="col-md-9">
+                    @Html.TextBoxFor(m => m.userName, new { @class = "form-control" })
+                    @Html.ValidationMessageFor(m => m.userName, "", new { @class = "text-danger" })
+                </div>
+            </div>
+            <div class="form-group">
+                <div class="col-md-offset-3 col-md-9">
+                    <input type="submit" value="授权" class="btn btn-primary" />
+                </div>
+            </div>
+        }
+    </div>
+</div>

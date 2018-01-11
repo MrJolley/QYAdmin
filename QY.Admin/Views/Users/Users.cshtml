@@ -1,0 +1,121 @@
+﻿@model IEnumerable<QY.Admin.Logic.Models.User>
+
+@{
+    ViewBag.Title = "用户列表";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+<h2>用户列表</h2>
+<p>
+    <span style="float:right;">
+        @Html.ActionLink("新建", "CreateUser", "Users", new { @class = "btn btn-primary btnCreate" })
+    </span>
+</p>
+<span id="spanMsg" class="text-danger"></span>
+<table class="table">
+    <tr>
+        <th>
+            @Html.DisplayNameFor(model => model.ChineseName)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.EnglishName)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.EmailAddress)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.IsManager)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.department)
+        </th>
+        <th></th>
+    </tr>
+
+@foreach (var item in Model) {
+    var isMag = (item.IsManager == null || !(bool)item.IsManager) ? "否" : "是";
+    <tr>
+        <td>
+            @Html.DisplayFor(modelItem => item.ChineseName)
+        </td>
+        <td>
+            @Html.DisplayFor(modelItem => item.EnglishName)
+        </td>
+        <td>
+            @Html.DisplayFor(modelItem => item.EmailAddress)
+        </td>
+        <td>
+            @Html.DisplayFor(modelItem => isMag)
+        </td>
+        <td>
+            @Html.DisplayFor(modelItem => item.department)
+        </td>
+        <td>
+            @Html.ActionLink("编辑", "UpdateUser", new { id = item.Id }, new { @class= "update-user" })
+        </td>
+    </tr>
+}
+</table>
+@section scripts{
+<script src="~/Scripts/jquery-ui.min.js" version="20171215"></script>
+    <script type="text/javascript">
+        $(document).ready(function () {
+            //用户更新
+            var $spanMsg = $("#spanMsg");
+            $(".update-user").click(function (e) {
+                e.preventDefault();
+                var actionUrl = $(this).attr("href");
+                $spanMsg.text("").hide();
+                $.ajax({
+                    url: actionUrl,
+                    type: "GET",
+                    dataType: "HTML",
+                    success: function (data) {
+                        $(".modal").empty().remove();
+                        $(document.body).append(data);
+                        $(".modal").modal();
+                    },
+                    error: function (xhr) {
+                        $spanMsg.text("加载数据异常！").show();
+                    },
+                    async: false
+                });
+            });
+            //新建用户
+            $('.btnCreate').click(function(e) {
+                e.preventDefault();
+                var actionUrl = $(this).attr("href");
+                $spanMsg.text("").hide();
+                $.ajax({
+                    url: actionUrl,
+                    type: "GET",
+                    dataType: "HTML",
+                    success: function (data) {
+                        $(".modal").empty().remove();
+                        $(document.body).append(data);
+                        $(".modal").modal();
+                    },
+                    error: function (xhr) {
+                        $spanMsg.text("加载数据异常！").show();
+                    },
+                    async: false
+                });
+            });
+        });
+    </script>
+    }
+<link type="text/css" href="~/Content/jquery-ui.min.css" rel="stylesheet" version="20171220" />
+<style>
+    .btnCreate {
+        /*color: #fff;
+        background-color: #8064a2;
+        outline: none;
+        padding: 0 10px;
+        height: 24px;
+        line-height: 24px;
+        cursor: pointer;
+        font-size: 14px;
+        text-align: center;*/
+        margin: 10px;
+        margin-right: 80px;
+    }
+</style>

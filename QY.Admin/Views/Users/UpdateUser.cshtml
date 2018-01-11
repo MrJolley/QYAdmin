@@ -1,0 +1,100 @@
+﻿@model QY.Admin.Logic.Models.User
+@{
+    ViewBag.Title = "用户更新";
+    Layout = null;
+}
+
+<!DOCTYPE html>
+
+<div class="modal" id="modalUpdateUser">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                @Model.ChineseName
+                <button type="button" class="close"
+                        data-dismiss="modal" aria-hidden="true">
+                    &times;
+                </button>
+            </div>
+            <div class="modal-body">
+                @using (Html.BeginForm("UpdateUser", "Users", new { id = @Model.Id, from = ViewBag.From }, FormMethod.Post, new { @class = "form form-horizontal" }))
+                {
+                    @Html.AntiForgeryToken()
+                    <div class="row form-group">
+                        <div class="col-sm-12">
+                            @Html.ValidationSummary()
+                        </div>
+                    </div>
+                    <div class="row form-group">
+                        <div class="col-sm-4 control-label">
+                            邮箱
+                        </div>
+                        <div class="col-sm-6">
+                            @Html.TextBoxFor(r => r.EmailAddress, new { @class = "form-control" })
+                        </div>
+                        <div class="col-sm-2"></div>
+                    </div>
+                    <div class="row form-group">
+                        <div class="col-sm-4 control-label">
+                            英文名
+                        </div>
+                        <div class="col-sm-6">
+                            @Html.TextBoxFor(r => r.EnglishName, new { @class = "form-control" })
+                        </div>
+                        <div class="col-sm-2"></div>
+                    </div>
+                    <div class="row form-group">
+                        <div class="col-sm-4 control-label">
+                            中文名
+                        </div>
+                        <div class="col-sm-6">
+                            @Html.TextBoxFor(r => r.ChineseName, new { @class = "form-control" })
+                        </div>
+                        <div class="col-sm-2"></div>
+                    </div>
+                    <div class="row form-group">
+                        <div class="col-sm-4 control-label">
+                            部门
+                        </div>
+                        <div class="col-sm-6">
+                            @Html.TextBoxFor(r => r.department, new { @class = "form-control" })
+                        </div>
+                        <div class="col-sm-2"></div>
+                    </div>
+                    <div class="row form-group">
+                        <div class="col-sm-4 control-label">
+                            Is Manager
+                        </div>
+                        <div class="col-sm-6">
+                            @Html.DropDownListFor(r => r.IsManager, new SelectListItem[] {
+                            new SelectListItem(){ Text="Yes",Value="true"},
+                            new SelectListItem(){Text="No",Value="false"}
+                       }, "--请选择--", new { @class = "form-control" })
+                        </div>
+                        <div class="col-sm-2"></div>
+                    </div>
+                    <div class="row form-group">
+                        <div class="col-sm-4 control-label">
+                            Is Excluded
+                        </div>
+                        <div class="col-sm-6">
+                            @Html.DropDownListFor(r => r.IsExcluded, new SelectListItem[] {
+                            new SelectListItem(){ Text="Yes",Value="true"},
+                            new SelectListItem(){Text="No",Value="false"}
+                       }, "--请选择--", new { @class = "form-control" })
+                        </div>
+                        <div class="col-sm-2"></div>
+                    </div>
+                    <div class="row form-group">
+                        <div class="col-sm-4"></div>
+                        <div class="col-sm-8">
+                            <input type="submit" value="更新" class="btn btn-warning" />
+                            &nbsp;
+                            <a href="javascript:void(0)" data-dismiss="modal" class="btn btn-default">关闭</a>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>

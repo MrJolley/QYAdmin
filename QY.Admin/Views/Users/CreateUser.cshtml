@@ -1,0 +1,89 @@
+﻿@model QY.Admin.Logic.Models.User
+
+@{
+    ViewBag.Title = "新建用户";
+    Layout = null;
+}
+
+<!DOCTYPE html>
+
+<div class="modal" id="modalCreateUser">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                新建用户
+                <button type="button" class="close"
+                        data-dismiss="modal" aria-hidden="true">
+                    &times;
+                </button>
+            </div>
+            <div class="modal-body">
+                @using (Html.BeginForm("CreateUser", "Users", FormMethod.Post, new { @class = "form form-horizontal" }))
+            {
+                    @Html.AntiForgeryToken()
+                    <div class="row form-group">
+                        <div class="col-sm-12">
+                            @Html.ValidationSummary()
+                        </div>
+                    </div>
+                    <div class="row form-group">
+                        @Html.LabelFor(model => model.ChineseName, htmlAttributes: new { @class = "control-label col-sm-4" })
+                        <div class="col-sm-6">
+                            @Html.EditorFor(model => model.ChineseName, new { htmlAttributes = new { @class = "form-control" } })
+                            @Html.ValidationMessageFor(model => model.ChineseName, "", new { @class = "text-danger" })
+                        </div>
+                        <div class="col-sm-2"></div>
+                    </div>
+
+                    <div class="row form-group">
+                        @Html.LabelFor(model => model.EnglishName, htmlAttributes: new { @class = "control-label col-sm-4" })
+                        <div class="col-sm-6">
+                            @Html.EditorFor(model => model.EnglishName, new { htmlAttributes = new { @class = "form-control" } })
+                            @Html.ValidationMessageFor(model => model.EnglishName, "", new { @class = "text-danger" })
+                        </div>
+                        <div class="col-sm-2"></div>
+                    </div>
+
+                    <div class="row form-group">
+                        @Html.LabelFor(model => model.EmailAddress, htmlAttributes: new { @class = "control-label col-sm-4" })
+                        <div class="col-sm-6">
+                            @Html.EditorFor(model => model.EmailAddress, new { htmlAttributes = new { @class = "form-control" } })
+                            @Html.ValidationMessageFor(model => model.EmailAddress, "", new { @class = "text-danger" })
+                        </div>
+                        <div class="col-sm-2"></div>
+                    </div>
+
+                    <div class="row form-group">
+                        @Html.LabelFor(model => model.IsManager, htmlAttributes: new { @class = "control-label col-sm-4" })
+                        <div class="col-sm-6">
+                            @Html.DropDownListFor(r => r.IsManager, new SelectListItem[] {
+                            new SelectListItem(){ Text="Yes",Value="true"},
+                            new SelectListItem(){Text="No",Value="false"}
+                       }, "--请选择--", new { @class = "form-control" })
+                            @Html.ValidationMessageFor(model => model.IsManager, "", new { @class = "text-danger" })
+                        </div>
+                        <div class="col-sm-2"></div>
+                    </div>
+
+                    <div class="row form-group">
+                        @Html.LabelFor(model => model.department, htmlAttributes: new { @class = "control-label col-sm-4" })
+                        <div class="col-sm-6">
+                            @Html.EditorFor(model => model.department, new { htmlAttributes = new { @class = "form-control" } })
+                            @Html.ValidationMessageFor(model => model.department, "", new { @class = "text-danger" })
+                        </div>
+                        <div class="col-sm-2"></div>
+                    </div>
+
+                    <div class="row form-group">
+                        <div class="col-sm-4"></div>
+                        <div class="col-sm-8">
+                            <input type="submit" value="添加" class="btn btn-warning" />
+                            &nbsp;
+                            <a href="javascript:void(0)" data-dismiss="modal" class="btn btn-default">关闭</a>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>

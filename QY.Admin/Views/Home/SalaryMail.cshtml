@@ -1,0 +1,247 @@
+﻿@using QY.Admin.Logic
+@using System.Data
+@model QY.Admin.Logic.Models.SalaryFileModel
+@{
+    ViewBag.Title = "工资邮件";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+<br />
+<div class="panel panel-default">
+    <div class="panel-heading">文件上传&&邮件发送</div>
+    <div class="panel-body">
+        @if (ViewBag.ErrorMsg != null)
+        {
+            <div class="form-group">
+                <div class="text-danger">
+                    error: @ViewBag.ErrorMsg
+                </div>
+            </div>
+        }
+        <div class="row">
+            <div class="col-sm-3">
+                <div>
+                    @using (Html.BeginForm("SalaryMail", "Home", FormMethod.Post, new { @class = "form", enctype = "multipart/form-data" }))
+                    {
+                        @Html.AntiForgeryToken();
+                        <div class="form-group">
+                            <label for="txtDate">日期</label>
+                            @Html.TextBoxFor(r => r.Date, new { @class = "form-control formInput", id = "txtDate", name = "mydate" })
+                        </div>
+                        <div class="form-group">
+                            <label for="btnFile">上传文件</label>
+                            @Html.TextBoxFor(r => r.FileLoaded, new { @class = "form-control formInput", type = "file", id = "txtFile", name = "myfile" })
+                        </div>
+                        <button type="submit" class="btn btn-primary">上传</button>
+                    }
+                </div>
+                <br style="clear: both;" />
+            </div>
+            <div class="col-sm-3">
+                <div>
+                    <div class="form-group">
+                        <label for="txtEmail">邮箱</label>
+                        <input type="email" id="txtEmail" class="form-control formInput" placeholder="输入邮件发送者" />
+                    </div>
+                    <div class="form-group">
+                        <label for="txtPassword">密码</label>
+                        <input type="password" id="txtPassword" class="form-control formInput" placeholder="输入邮箱密码" />
+                    </div>
+                    <button type="button" id="send" class="btn btn-primary" onclick="transferTableChecked()">发送邮件</button>
+                </div>
+            </div>
+            <div class="col-sm-6">
+                <div class="form-group">
+                    <label for="description">邮件正文文字描述</label>
+                    <textarea id="description"></textarea>
+                </div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-sm-12">
+                @if (ViewBag.salaryDetail == true)
+                {
+                    <div class="tablebox">
+                        <div class="tablehead">
+                            <table class="head row-clicked" border="1" id="table_head">
+                                <tr>
+                                    <td>状态</td>
+                                    <td><input type="checkbox" id="selectAll" value="select all">全选</td>
+                                    @{
+                    string[] option = new string[] { "月份", "姓名", "基本工资", "岗位津贴", "加班费", "病假", "事假/事假工资", "其他", "个人公积金", "个人/个人养老", "个人/个人医疗", "个人/个人失业", "大病医疗", "个税", "实发工资", "邮箱", "账号", "开户行" };
+                                    }
+                                    @foreach (DataColumn col in Model.SalaryData.Columns)
+                                    {
+                                        <td>
+                                            @col.ColumnName
+                                            @if (!option.Contains(@col.ColumnName))
+                                            {
+                                                <button class="btn btn-warning delete-col">×</button>
+                                            }
+                                        </td>
+                                    }
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="tablebody">
+                            <table class="body table-hover table-click-effect" border="1" id="table_body">
+                                @for (int i = 0; i < Model.SalaryData.Rows.Count; i++)
+                                {
+                                    <tr>
+                                        @if (Model.SalaryData.Rows[i][0] != "")
+                                        {
+                                            <td><div class=@Model.SalaryData.Rows[i][3]></div></td>
+                                            <td><input type="checkbox" name="selectOption" value=@Model.SalaryData.Rows[i][3] /></td>
+                                        }
+                                        else
+                                        {
+                                            <td></td>
+                                            <td></td>
+                                        }
+                                        @for (int field = 0; field < Model.SalaryData.Columns.Count; field++)
+                                        {
+                                            <td>@(Model.SalaryData.Rows[i][field])</td>
+                                        }
+                                    </tr>
+                                }
+                            </table>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+@section scripts{
+    <script type="text/javascript" src="~/Content/bootstrap-datepicker/js/bootstrap-datepicker.min.js"></script>
+    <script type="text/javascript" src="~/Content/bootstrap-datepicker/locales/bootstrap-datepicker.zh-CN.min.js"></script>
+    <script type="text/javascript" src="~/Scripts/mail.js"></script>
+    <script type="text/javascript">
+        $(document).ready(function () {
+            $("#txtDate").datepicker({
+                format: 'MM/yyyy',
+                startView: 1,
+                minViewMode: 1,
+                language: 'zh-CN',
+                autoclose: true
+            });
+        });
+
+        //adjust the title and body position
+        $(document).ready(function () {
+            var titleHeight = $(".tablehead").height();
+            var titltWidth = $(".tablehead").width();
+            $(".tablebody").css("top", titleHeight);
+            $(".tablebody").css("width", titltWidth + 17);
+        });
+
+        $("#selectAll").click(function () {
+            var so = document.getElementsByName("selectOption");
+            var sa = document.getElementById("selectAll");
+
+            if (sa.checked == true) {
+                for (var i = 0; i < so.length; i++) {
+                    so[i].checked = true;
+                }
+            }
+            else if (sa.checked == false) {
+                for (var i = 0; i < so.length; i++) {
+                    so[i].checked = false;
+                }
+            }
+        });
+
+        $(document).ready(function () {
+            var $clickedRow = null;
+            $(".table-click-effect tbody tr").click(function () {
+                if ($clickedRow != null)
+                    $clickedRow.removeClass("row-clicked");
+                $(this).addClass("row-clicked");
+                $clickedRow = $(this);
+            });
+        });
+    </script>
+}
+@section styles{
+    <link href="~/Content/bootstrap-datepicker/css/bootstrap-datepicker.min.css" rel="stylesheet" />
+    <style>
+        .panel-body {
+            min-height: 700px;
+        }
+
+        .formInput {
+            width: 200px;
+        }
+
+        #description {
+            height: 160px;
+            width: 500px;
+            max-width: 800px;
+        }
+
+        .tablebox {
+            overflow-y: hidden;
+            overflow-x: auto;
+            height: 720px;
+            width: auto;
+            min-height: 150px;
+            position: relative;
+            margin-top: 4px;
+            margin-left: 2px;
+            padding-top: -2px;
+            padding-bottom: 4px;
+            border: 3px solid #009933;
+            table-layout: fixed;
+        }
+
+        .tablehead {
+            position: absolute;
+            width: 3600px;
+            left: 0;
+        }
+
+        .tablebody {
+            position: absolute;
+            height: 620px;
+            overflow-y: auto;
+            overflow-x: hidden;
+            left: 0;
+        }
+
+        td {
+            width: 80px;
+            white-space: normal;
+            word-break: break-all;
+            text-align: center;
+        }
+
+        table {
+            border-collapse: collapse;
+            border-spacing: 0;
+            table-layout: fixed;
+        }
+
+        .tbodyset {
+            overflow-y: scroll;
+        }
+
+        .correctStyle {
+            color: green;
+            text-align: center;
+            font: larger,bolder;
+        }
+
+        .errorStyle {
+            color: red;
+            text-align: center;
+            font: larger,bolder;
+        }
+
+        .emailStyle {
+            height: 120px;
+            width: 1050px;
+            max-width: 1200px;
+        }
+    </style>
+}
+
+
