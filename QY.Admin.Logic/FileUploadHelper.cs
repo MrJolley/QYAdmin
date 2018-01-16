@@ -37,107 +37,139 @@ namespace QY.Admin.Logic
         /// <summary>
         /// 读取当前年假，上一年年假结余的excel信息
         /// </summary>
-        //public HolidayResult ReadHolidayFile()
-        //{
-        //    var sheet = this._workBook.GetSheetAt(0);
-        //    if (sheet == null)
-        //    {
-        //        return new HolidayResult()
-        //        {
-        //            hasError = true,
-        //            ErrorMsg = "当前文件无工作表数据"
-        //        };
-        //    }
-        //    IRow title = sheet.GetRow(0);
-        //    if (!title.GetCell(0, MissingCellPolicy.CREATE_NULL_AS_BLANK).ToString().Trim().Equals("Name"))
-        //    {
-        //        return new HolidayResult()
-        //        {
-        //            hasError = true,
-        //            ErrorMsg = "当前文件数据格式不正确，请确保'A1'单元格为数据起始点"
-        //        };
-        //    }
-        //    //读取所有年假信息
-        //    int cols = title.LastCellNum;
-        //    List<UserHolidayList> result = new List<UserHolidayList>();
-        //    UserHolidayList list = new UserHolidayList();
-        //    try
-        //    {
-
-        //        for (int row = 1; row < sheet.LastRowNum + 1; row++)
-        //        {
-        //            IRow sRow = sheet.GetRow(row);
-        //            string name = sheet.GetRow(row).GetCell(0).ToString();
-        //            bool nameExt = name != null && name != ""; //名字单元格不为空
-        //            //确保第一个名字单元格存在
-        //            if (row == 1 && !nameExt)
-        //            {
-        //                return new HolidayResult()
-        //                {
-        //                    hasError = true,
-        //                    ErrorMsg = "当前文件数据格式不正确，请确保'A2'单元格名字数据不能为空"
-        //                };
-        //            }
-        //            if (nameExt)
-        //            {
-        //                if (row != 1)
-        //                {
-        //                    result.Add(list);
-        //                }
-        //                list = new UserHolidayList()
-        //                {
-        //                    StaffName = name,
-        //                };
-        //            }
-        //            //读取所有基本信息详情
-        //            list.UserHolidayDetail.Add(
-        //                new HolidayDetail()
-        //                {
-        //                    PaidLeavePeriod = sRow.GetCell(1, MissingCellPolicy.CREATE_NULL_AS_BLANK).StringCellValue.ToString(),
-        //                    PaidLeaveHours = double.Parse(sRow.GetCell(2, MissingCellPolicy.CREATE_NULL_AS_BLANK).NumericCellValue.ToString().Trim()),
-        //                    PaidLeaveRemainingHours = double.Parse(sRow.GetCell(3, MissingCellPolicy.CREATE_NULL_AS_BLANK).NumericCellValue.ToString().Trim()),
-        //                    ExpirationDate = sRow.GetCell(4, MissingCellPolicy.CREATE_NULL_AS_BLANK).ToString().Trim(),
-        //                    PostponedDate = sRow.GetCell(5, MissingCellPolicy.CREATE_NULL_AS_BLANK).ToString().Trim(),
-        //                });
-        //            //数据读取结束，返回result
-        //            if (row == sheet.LastRowNum)
-        //            {
-        //                result.Add(list);
-        //                break;
-        //            }
-        //        }
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        return new HolidayResult()
-        //        {
-        //            hasError = true,
-        //            ErrorMsg = ex.Message,
-        //        };
-        //    }
-        //    foreach (var lst in result)
-        //    {
-        //        foreach (var holiday in lst.UserHolidayDetail)
-        //        {
-        //            DateTime expire = DateTime.MinValue;
-        //            DateTime postpone = DateTime.MinValue;
-        //            if (DateTime.TryParse(holiday.ExpirationDate, out expire))
-        //            {
-        //                holiday.ExpirationDate = expire.ToString("MM/dd/yyyy");
-        //            }
-        //            if (DateTime.TryParse(holiday.PostponedDate, out postpone))
-        //            {
-        //                holiday.PostponedDate = postpone.ToString("MM/dd/yyyy");
-        //            }
-        //        }
-        //    }
-        //    return new HolidayResult()
-        //    {
-        //        hasError = false,
-        //        ErrorMsg = "",
-        //        result = result
-        //    };
-        //}
+        public HolidayResult ReadHolidayFile()
+        {
+            var sheet = this._workBook.GetSheetAt(0);
+            if (sheet == null)
+            {
+                return new HolidayResult()
+                {
+                    hasError = true,
+                    ErrorMsg = "当前文件无工作表数据"
+                };
+            }
+            int titleRowIdx = 0;
+            for (int i = 0; i < sheet.LastRowNum; i++)
+            {
+                if (i > 10)
+                {
+                    return new HolidayResult()
+                    {
+                        hasError = true,
+                        ErrorMsg = "当前文件数据格式不正确，未在规定范围内找到起始数据列'序号'"
+                    };
+                }
+                var flag = sheet.GetRow(i).GetCell(0, MissingCellPolicy.CREATE_NULL_AS_BLANK).ToString().Trim();
+                if (flag.Equals("序号"))
+                {
+                    titleRowIdx = i;
+                    break;
+                }
+            }
+            List<HolidayDetail> result = new List<HolidayDetail>();
+            if (titleRowIdx > 0)
+            {
+                IRow title = sheet.GetRow(titleRowIdx);
+                //获取最后剩余年假的列
+                int totalRemainingIdx = 0;
+                for (int row = 0; row < title.LastCellNum + 1; row++)
+                {
+                    if (title.GetCell(row, MissingCellPolicy.CREATE_NULL_AS_BLANK).ToString().Contains("剩余年假"))
+                    {
+                        totalRemainingIdx = row;
+                        break;
+                    }
+                }
+                if (totalRemainingIdx == 0)
+                {
+                    return new HolidayResult()
+                    {
+                        hasError = true,
+                        ErrorMsg = "当前文件数据格式不正确，未在规定范围内找到数据列'剩余年假'"
+                    };
+                }
+                //读取所有年假信息，默认title为两行数据
+                int cols = title.LastCellNum;
+                var users = new UserService().GetAllUsers().ToList();
+                for (int row = titleRowIdx + 2; row < sheet.LastRowNum + 1; row++)
+                {
+                    string name = string.Empty;
+                    try
+                    {
+                        IRow sRow = sheet.GetRow(row);
+                        name = sRow.GetCell(1, MissingCellPolicy.CREATE_NULL_AS_BLANK).ToString().Trim();
+                        bool nameExt = name != null && name != ""; //名字单元格不为空
+                                                                   //确保第一个名字单元格存在
+                        if (nameExt)
+                        {
+                            if (users.Where(r => r.ChineseName == name).Count() == 0)
+                            {
+                                throw new InvalidDataException("user chinese name not match the special data in database");
+                            }
+                            //读取所有基本信息详情
+                            var specialCol = sRow.GetCell(totalRemainingIdx, MissingCellPolicy.CREATE_NULL_AS_BLANK);
+                            double val = 0.0;
+                            if (specialCol.CellType == CellType.Formula)
+                            {
+                                val = specialCol.NumericCellValue;
+                            }
+                            else
+                            {
+                                val = string.IsNullOrWhiteSpace(specialCol.ToString().Trim()) ? 0 : double.Parse(specialCol.ToString().Trim());
+                            }
+                            var pr = sRow.GetCell(8, MissingCellPolicy.CREATE_NULL_AS_BLANK).ToString().Trim();
+                            var dds = sRow.GetCell(9, MissingCellPolicy.CREATE_NULL_AS_BLANK).ToString().Trim();
+                            var holiday = new HolidayDetail()
+                            {
+                                ChineseName = name,
+                                HolidayStartDate = DateTime.Parse(sRow.GetCell(6).ToString().Trim()).ToString("yyyy-MM-dd"),
+                                HolidayEndDate = DateTime.Parse(sRow.GetCell(7).ToString().Trim()).ToString("yyyy-MM-dd"),
+                                PreviousRemainingDuration = string.IsNullOrWhiteSpace(pr) ? 0 : double.Parse(pr),
+                                CurrentAvailableDuration = double.Parse(sRow.GetCell(9, MissingCellPolicy.CREATE_NULL_AS_BLANK).ToString().Trim()),
+                                //PreviousUsedDuration = sRow.AsEnumerable().Where(r => r.RowIndex > 6 && r.RowIndex < 19).Sum(r => r.NumericCellValue), //上一区间idx between 7 and 18
+                                //CurrentUsedDuration = sRow.AsEnumerable().Where(r => r.RowIndex > 18 && r.RowIndex < 31).Sum(r => r.NumericCellValue), //当前区间idx between 19 and 30
+                                RemainingTotalDuration = val,
+                                Email = users.Where(r => r.ChineseName == name).Select(r => r.EmailAddress).First()
+                            };
+                            if (holiday.PreviousRemainingDuration > 0)
+                            {
+                                holiday.PreviousStartDate = DateTime.Parse(sRow.GetCell(3).ToString().Trim()).ToString("yyyy-MM-dd");
+                                holiday.PreviousEndDate = DateTime.Parse(sRow.GetCell(4).ToString().Trim()).ToString("yyyy-MM-dd");
+                                holiday.PreviousAvailableDuration = double.Parse(sRow.GetCell(5, MissingCellPolicy.CREATE_NULL_AS_BLANK).ToString().Trim());
+                            }
+                            result.Add(holiday
+                                );
+                        }
+                        else
+                        {
+                            break; //读取空数据时，默认所有有效记录结束
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        return new HolidayResult()
+                        {
+                            hasError = true,
+                            ErrorMsg = $"数据记录有误，定位：姓名=>{name}, 错误信息：{ex.Message}",
+                        };
+                    }
+                }
+            }
+            if (result.Count > 0)
+            {
+                return new HolidayResult()
+                {
+                    hasError = false,
+                    ErrorMsg = "",
+                    result = result
+                };
+            }
+            return new HolidayResult()
+            {
+                hasError = true,
+                ErrorMsg = "无法读取相关数据"
+            };
+        }
 
         /// <summary>
         /// 读取所有的调休excel信息
@@ -293,14 +325,14 @@ namespace QY.Admin.Logic
                 throw new Exception("Excel wrong format:" + fileExt);
         }
 
-        //public class HolidayResult
-        //{
-        //    public bool hasError { get; set; }
+        public class HolidayResult
+        {
+            public bool hasError { get; set; }
 
-        //    public string ErrorMsg { get; set; }
+            public string ErrorMsg { get; set; }
 
-        //    public List<UserHolidayList> result { get; set; }
-        //}
+            public List<HolidayDetail> result { get; set; }
+        }
 
         public class TransferResult
         {

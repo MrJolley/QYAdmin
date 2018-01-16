@@ -3,3 +3,15 @@
 ################################################################################
 
 *.dll
+*.config
+*.transform
+*.xml
+/packages/Antlr.3.4.1.9004/lib
+/QY.Admin.Logic/obj
+/QY.Admin.Logic/bin
+/packages
+/SFL.Database.Actions/obj
+/SFL.Database.Actions/bin
+/QY.Admin/bin
+/QY.Admin/obj
+/.vs/QY.Admin/v15

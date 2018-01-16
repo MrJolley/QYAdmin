@@ -1,0 +1,231 @@
+﻿@model QY.Admin.Logic.ViewModels.HolidayDetail
+
+@{
+    ViewBag.Title = "年假邮件";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="panel panel-default" style="margin: 20px; min-height: 500px;" ng-app="holidayMail">
+    <div class="panel-heading">
+        @ViewBag.Title
+    </div>
+    <div class="panel-body" ng-controller="excelCheckCtrl">
+        <form class="form-horizontal">
+            <div style="border-bottom: 1px solid #9f9a9a; padding: 10px;">
+                <div class="form-group">
+                    <label for="holidayFile" class="control-label col-sm-2">选择文件：</label>
+                    <input type="file" id="holidayFile" ng-model="holidayFile" name="holidayFile" class="form-control col-sm-10" />
+                </div>
+                <div>
+                    <label class="col-sm-2"></label>
+                    <input type="button" class="btn btn-primary" value="导入" ng-click="importData();" />
+                    <span class="text-danger" style="margin-left: 10px;" ng-bind="errorMsg"></span>
+                </div>
+            </div>
+        </form>
+
+        <div ng-show="isDisplay" ng-cloak>
+            <div class="btn-margin">
+                <button class="btn btn-default" ng-click="CheckedAll();">反选</button>
+                <div style="float:right;">
+                    <input type="text" class="form-control" id="searchKey" ng-model="searchKeyword" placeholder="输入姓名搜索...">
+                </div>
+            </div>
+            <div class="holidayContainer" ng-if="holidayContainer">
+                <table class="table table-bordered table-hover fixed-holiday">
+                    <thead>
+                        <tr>
+                            <td rowspan="2">序号</td>
+                            <td rowspan="2">是否选中</td>
+                            <td rowspan="2">姓名</td>
+                            <td colspan="2">年假区间</td>
+                            <td rowspan="2">上一区间未休计入本区间(h)</td>
+                            <td rowspan="2">本区间应休年假(h)</td>
+                            <td rowspan="2">剩余年假(h)</td>
+                        </tr>
+                        <tr>
+                            <td>起始日期</td>
+                            <td>截止日期</td>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr ng-repeat="item in UserHolidayDetail | filter: searchKeyword">
+                            <td ng-bind="$index+1"></td>
+                            <td ng-click="item.checked = !item.checked;">
+                                <input type="checkbox" ng-model="item.checked" ng-click="PreventPop($event);" />
+                            </td>
+                            <td ng-bind="item.ChineseName"></td>
+                            <td ng-bind="item.HolidayStartDate"></td>
+                            <td ng-bind="item.HolidayEndDate"></td>
+                            <td ng-bind="item.PreviousRemainingDuration"></td>
+                            <td ng-bind="item.CurrentAvailableDuration"></td>
+                            <td ng-bind="item.RemainingTotalDuration"></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="mailFormContainer">
+                <form class="form-inline">
+                    <div class="form-group">
+                        <label class="sr-only" for="sendEmail">邮箱</label>
+                        <input type="email" class="form-control" id="senderEmail" ng-model="senderEmail" placeholder="Email">
+                    </div>
+                    <div class="form-group">
+                        <label class="sr-only" for="senderPassword">密码</label>
+                        <input type="password" class="form-control" id="senderPassword" ng-model="senderPassword" placeholder="Password">
+                    </div>
+                    <button type="button" class="btn btn-primary" ng-click="SendEmail();">发送邮件</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+@section styles {
+    <link type="text/css" rel="stylesheet" href="~/Content/alertify.default.min.css" />
+    <link type="text/css" rel="stylesheet" href="~/Content/alertify.min.css" />
+    <style>
+        .fixed-holiday {
+            margin-top: 20px;
+            text-align: center;
+        }
+
+            .fixed-holiday thead tr td, 
+            .fixed-holiday tbody tr td {
+                vertical-align: middle;
+            }
+
+        .btn-margin {
+            margin: 20px 0 0;
+        }
+
+        .table-container {
+            max-height: 800px;
+            min-height: 500px;
+            overflow-y: auto;
+        }
+    </style>
+}
+@section scripts {
+    <script type="text/javascript" src="~/Scripts/angular.min.js"></script>
+    <script type="text/javascript" src="~/Scripts/alertify.js"></script>
+    <script>
+        var app = angular.module('holidayMail', []);
+        app.controller('excelCheckCtrl', ['$http', '$scope', function ($http, $scope) {
+            $scope.isDisplay = false;
+            $scope.holidayContainer = false;
+            $scope.UserHolidayDetail = [];
+
+            $scope.importData = function () {
+                $scope.isDisplay = false;
+                var myFile = document.querySelector('input[type=file]').files[0];
+
+                var data = new FormData();
+                data.append('excelfile', myFile);
+                data.append('fileType', 'annual');
+                $http({
+                    method: 'post',
+                    url: 'HolidayFileHandler',
+                    data: data,
+                    headers: {
+                        'Content-Type': undefined
+                    },
+                    transformRequest: angular.identity
+                }).then(function (response) {
+                    var data = response.data;
+                    if (typeof data == 'string' &&
+                        data != '' && data != null) {
+                        $scope.isDisplay = false;
+                        $scope.errorMsg = data;
+                        $scope.UserHolidayDetail = [];
+                        return;
+                    }
+
+                    if (response.data.data.length > 0) {
+                        $scope.isDisplay = true;
+                        $scope.holidayContainer = true;
+                        $scope.errorMsg = '';
+                        $scope.UserHolidayDetail = response.data.data;
+                        angular.forEach($scope.UserHolidayDetail, function (item) {
+                            item.checked = true;
+                        });
+                    } else {
+                        $scope.isDisplay = false;
+                        $scope.errorMsg = '上传成功：数据暂无内容';
+                    }
+
+                }, function (response) {
+                    var errorMsg = '错误代码：' + response.status + '<br />' +
+                        '错误信息：' + response.statusText;
+                    alertify.alert(errorMsg);
+                });
+            }
+
+            $scope.SendEmail = function () {
+                var email = $scope.senderEmail;
+                var password = $scope.senderPassword;
+                if (email === undefined || password === undefined) {
+                    alertify.error('输入错误：邮箱密码格式错误', 5);
+                    return;
+                }
+                if (email == '' || password == '') {
+                    alertify.error('输入错误：邮箱密码不能为空', 5);
+                    return;
+                } else {
+                    var filterData = [];
+                    angular.forEach($scope.UserHolidayDetail, function (item) {
+                        if (item.checked) {
+                            filterData.push(item);
+                        }
+                    });
+                    if (filterData.length == 0) {
+                        alertify.error('选择错误：至少勾选一个选项发送邮件', 5);
+                        return;
+                    }
+                    var data = new FormData();
+                    data.append('staffList', JSON.stringify(filterData));
+                    data.append('email', email);
+                    data.append('password', password);
+                    data.append('mailType', 'annual');
+                    $http({
+                        method: 'post',
+                        url: 'MailSendingHandler',
+                        data: data,
+                        headers: {
+                            'Content-Type': undefined
+                        }
+                    }).then(function (response) {
+                        var data = response.data;
+                        var show = '';
+                        if (data.SuccessCount > 0) {
+                            show += '发送成功' + data.SuccessCount + '人： ' + data.SuccessList.join(',') + '<br />';
+                        }
+                        if (data.FailureCount > 0) {
+                            show += '发送失败' + data.FailureCount + '人： ' + data.FailureList.join(',') + '<br />';
+                            show += '失败详情： ' + data.FailureMsg.join(',') + '<br />';
+                        }
+                        alertify.alert(show);
+                    }, function (response) {
+                        var errorMsg = '错误代码：' + response.status + '<br />' +
+                            '错误信息：' + response.statusText;
+                        alertify.alert(errorMsg);
+                    });
+                }
+            }
+
+            $scope.CheckedAll = function () {
+                var data = $scope.UserHolidayDetail;
+                if (data.length > 0) {
+                    angular.forEach(data, function (item) {
+                        item.checked = !item.checked;
+                    });
+                }
+            }
+
+            $scope.PreventPop = function (event) {
+                event.stopPropagation();
+            }
+        }]);
+    </script>
+}
+

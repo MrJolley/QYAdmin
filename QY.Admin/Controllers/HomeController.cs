@@ -151,24 +151,22 @@ namespace QY.Admin.Controllers
                     //年假数据读取
                     if (fileType.Equals("annual"))
                     {
-                        //FileUploadHelper helper = new FileUploadHelper(stream, file.FileName, LoginName);
-                        //var result = helper.ReadHolidayFile();
-                        //if (result.hasError)
-                        //{
-                        //    ErrorMsg = result.ErrorMsg;
-                        //    return Json(ErrorMsg);
-                        //}
-                        //else
-                        //{
-                        //    //响应读取的数据结构
-                        //    responseData = new
-                        //    {
-                        //        type = fileType,
-                        //        data = result.result
-                        //    };
-                        //    return Json(responseData);
-                        //}
-                        return Json("");
+                        FileUploadHelper helper = new FileUploadHelper(stream, file.FileName, "");
+                        var result = helper.ReadHolidayFile();
+                        if (result.hasError)
+                        {
+                            ErrorMsg = result.ErrorMsg;
+                            return Json(ErrorMsg);
+                        }
+                        else
+                        {
+                            //响应读取的数据结构
+                            responseData = new
+                            {
+                                data = result.result
+                            };
+                            return Json(responseData);
+                        }
                     }
                     else if (fileType.Equals("transfer"))
                     {
@@ -219,42 +217,89 @@ namespace QY.Admin.Controllers
         {
             string email = Request.Form["email"];
             string password = Request.Form["password"];
+            string type = Request.Form["mailType"];
 
             var service = new HolidayTransferService();
-            HolidayTransferMailResult result = new HolidayTransferMailResult();
-            List<UserTransferList> lutl = JsonConvert.DeserializeObject<List<UserTransferList>>(Request.Form["staffList"]);
-            foreach (UserTransferList ul in lutl)
+            MailResult result = new MailResult();
+            switch (type)
             {
-                string htmlData = string.Empty;
-                var details = ul.UserTransferDetail.AsEnumerable().Where(r => r.TransferRemainingTime != 0);
-                if (details.Count() == 0)
-                {
-                    continue;
-                }
-                try
-                {
-                    htmlData = service.TransferDataConvert2Html(ul);
-                }
-                catch (Exception ex)
-                {
-                    result.FailureList.Add(ul.StaffName);
-                    result.FailureMsg.Add(ex.Message);
-                    continue;
-                }
-                try
-                {
-                    service.MailSending(email, password, ul.StaffEmail, htmlData, "transfer");
-                    result.SuccessList.Add(ul.StaffName);
-                }
-                catch (Exception ex)
-                {
-                    result.FailureList.Add(ul.StaffName);
-                    result.FailureMsg.Add(ex.Message);
-                }
+                case "annual":
+                    List<HolidayDetail> rlt = JsonConvert.DeserializeObject<List<HolidayDetail>>(Request.Form["staffList"]);
+                    var available = rlt.Where(r => r.RemainingTotalDuration > 0 && 
+                    Convert.ToDateTime(r.HolidayEndDate) >= DateTime.Today &&
+                    Convert.ToDateTime(r.HolidayEndDate).Subtract(DateTime.Today).Days <= 122).ToList();
+                    foreach (var item in available)
+                    {
+                        string htmlData = string.Empty;
+                        try
+                        {
+                            htmlData = service.HolidayDataConvert2Html(item);
+                        }
+                        catch (Exception ex)
+                        {
+                            result.FailureList.Add(item.ChineseName);
+                            result.FailureMsg.Add(ex.Message);
+                            continue;
+                        }
+                        try
+                        {
+                            service.MailSending(email, password, item.Email, htmlData, "annual");
+                            result.SuccessList.Add(item.ChineseName);
+                        }
+                        catch (Exception ex)
+                        {
+                            result.FailureList.Add(item.ChineseName);
+                            result.FailureMsg.Add(ex.Message);
+                        }
+                    }
+                    break;
+                case "transfer":
+                    List<UserTransferList> lutl = JsonConvert.DeserializeObject<List<UserTransferList>>(Request.Form["staffList"]);
+                    foreach (UserTransferList ul in lutl)
+                    {
+                        string htmlData = string.Empty;
+                        var details = ul.UserTransferDetail.AsEnumerable().Where(r => r.TransferRemainingTime != 0);
+                        if (details.Count() == 0)
+                        {
+                            continue;
+                        }
+                        try
+                        {
+                            htmlData = service.TransferDataConvert2Html(ul);
+                        }
+                        catch (Exception ex)
+                        {
+                            result.FailureList.Add(ul.StaffName);
+                            result.FailureMsg.Add(ex.Message);
+                            continue;
+                        }
+                        try
+                        {
+                            service.MailSending(email, password, ul.StaffEmail, htmlData, "transfer");
+                            result.SuccessList.Add(ul.StaffName);
+                        }
+                        catch (Exception ex)
+                        {
+                            result.FailureList.Add(ul.StaffName);
+                            result.FailureMsg.Add(ex.Message);
+                        }
+                    }
+                    break;
+                default:
+                    break;
             }
             return Json(result);
+
         }
 
+        #endregion
+
+        #region 年假邮件功能请求
+        [Authorize(Roles = "Admin")]
+        public ActionResult HolidayMail()
+        {
+            return View(new HolidayDetail());
+        }
         #endregion
 
     }
