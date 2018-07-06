@@ -209,7 +209,11 @@ namespace QY.Admin.Logic
                     for (int row = 1; row < sheet.LastRowNum + 1; row++)
                     {
                         IRow sRow = sheet.GetRow(row);
-                        string name = sheet.GetRow(row).GetCell(0).ToString();
+                        if (sRow == null || sRow.Cells.Count == 0)
+                        {
+                            continue;
+                        }
+                        string name = sRow.GetCell(0) == null ? null : sRow.GetCell(0).ToString();
                         bool nameExt = name != null && name != ""; //名字单元格不为空
                                                                    //确保第一个名字单元格存在
                         if (nameExt)
