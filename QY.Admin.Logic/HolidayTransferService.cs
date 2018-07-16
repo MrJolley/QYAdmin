@@ -17,10 +17,9 @@ namespace QY.Admin.Logic
         const string newLine = "<br />";
         //配置年假字段
         private string _holidaySubject = "年假即将到期提醒";
-        private string _holidayContentComment = "截止到<span style='color:red;font-weight:bold;'>{0}</span>" + 
-            "你有<span style='color:red;font-weight:bold;'>{1}</span>小时的年假。" + "<br />" + "<br />" +
-            "年假有效期为{2}年，请在年假区间内合理规划使用您的年假，请年假时请提前向主管申请。如因个人原因无法使用，未使用完年假将作废。" +
-            "<br />" + "<br />" + "以下是年假明细：";
+        private string _holidayContentComment = "以下为你当前剩余年假信息，请查收。";
+        private string _holidayTagComment = $"年假使用规则说明：{newLine}1.	年假请在截止日前使用完毕。{newLine}2.	上一区间未使用年假分两部分分别计入本区间上下半年，本区间年假等分12个月分别计入相应月份，原则上员工不可以提前使用当前月份之后的年假，特殊情况下经主管批准可以提前使用一个季度的年假。" +
+            $"{newLine}3.	年假先使用法定年假，后使用福利年假。{newLine}4.		年假使用应按月折算当月可使用小时数，原则上不可以超前使用。";
         //配置调休字段
         private string _transferSubject = "调休剩余时间提醒";
         private string _transferContentComment = "您还有剩余调休时间<span style='color:red;font-weight:bold;'>{0}</span>小时，" +
@@ -85,12 +84,24 @@ namespace QY.Admin.Logic
             string name = holiday.ChineseName;
             string contentRespect = string.Format(_contentRespect, name);
             //数据结构转化为HTML表格
-            string data = HolidayTableConvertHtml(holiday);
+            //数据结构转化为HTML表格
+            DataTable detail = JsonConvert.DeserializeObject<DataTable>(
+                JsonConvert.SerializeObject(new List<object> {
+                    new {
+                        name = holiday.ChineseName,
+                        begin = holiday.HolidayStartDate.ToString("yyyy-MM-dd"),
+                        end = holiday.HolidayEndDate.ToString("yyyy-MM-dd"),
+                        before = holiday.BeforePaidLeaveRemainingHours,
+                        current = holiday.CurrentPaidLeaveTotalHours,
+                        total = holiday.PaidLeaveRemainingHours,
+                        available = holiday.CurrentAvailableRemainingHours
+                    }
+                }));
+            string data = HolidayTableConvertHtml(detail);
 
             result.Append(contentRespect).Append(newLine).Append(newLine)
-                .Append(string.Format(_holidayContentComment, holiday.HolidayEndDate, holiday.RemainingTotalDuration, 
-                (holiday.PreviousRemainingDuration == 0 && holiday.CurrentAvailableDuration == 24) ? "半" : "一")).Append(newLine).Append(newLine)
-                .Append(data).Append(newLine)
+                .Append(_holidayContentComment).Append(newLine).Append(newLine)
+                .Append(data).Append(newLine).Append(_holidayTagComment).Append(newLine)
                 .Append(_mailSenderSignature);
             return result.ToString();
         }
@@ -102,54 +113,28 @@ namespace QY.Admin.Logic
         /// <param name="nameCol">只显示一次的姓名表头</param>
         /// <param name="name">只显示一次的姓名</param>
         /// <returns></returns>
-        private string HolidayTableConvertHtml(HolidayDetail holiday)
+        private string HolidayTableConvertHtml(DataTable dt)
         {
             StringBuilder sb = new StringBuilder();
-            sb.Append("<table style='border-collapse:collapse; text-align:center'>").Append("<tr>");
-            sb.Append("<td style=\"border: 1px solid black; width: 80px;\">").Append("姓名").Append("</td>");
-            sb.Append("<td style=\"border: 1px solid black; width: 280px;\">").Append("年假区间").Append("</td>");
-            sb.Append("<td style=\"border: 1px solid black; width: 110px;\">").Append("应休年假(h)").Append("</td>");
-            sb.Append("<td style=\"border: 1px solid black; width: 110px;\">").Append("剩余年假(h)").Append("</td>");
-            sb.Append("<td style=\"border: 1px solid black; width: 120px;\">").Append("到期时间").Append("</td>");
-            sb.Append("<td style=\"border: 1px solid black; width: 120px;\">").Append("延期至").Append("</td>");
-            sb.Append("</tr>");
-            if (holiday.PreviousRemainingDuration == 0)
+            int rows = dt.Rows.Count;
+
+            sb.Append("<table style=\"border-collapse:collapse;text-align:center;font-family:'Microsoft YaHei','微软雅黑','SimSun','宋体','arial','serif'\">").Append("<tr>");
+            sb.Append("<td rowspan=2 style=\"border: 1px solid black; width: 100px; \">").Append("姓名").Append("</td>");
+            sb.Append("<td colspan=2 style=\"border: 1px solid black; \">").Append("年假区间").Append("</td>");
+            sb.Append("<td rowspan=2 style=\"border: 1px solid black; width: 80px; \">").Append("上一区间未休计入本区间(h)").Append("</td>");
+            sb.Append("<td rowspan=2 style=\"border: 1px solid black; width: 80px; \">").Append("本区间应休年假(h)").Append("</td>");
+            sb.Append("<td rowspan=2 style=\"border: 1px solid black; width: 80px; \">").Append("剩余年假(h)").Append("</td>");
+            sb.Append("<td rowspan=2 style=\"border: 1px solid black; width: 80px; \">").Append("截止本月可使用年假(h)").Append("</td>").Append("</tr>");
+            sb.Append("<tr>");
+            sb.Append("<td style=\"border: 1px solid black; width: 120px; \">").Append("起始日期").Append("</td>");
+            sb.Append("<td style=\"border: 1px solid black; width: 120px; \">").Append("截止日期").Append("</td>").Append("</tr>");
+            foreach (DataRow dr in dt.Rows)
             {
                 sb.Append("<tr>");
-                sb.Append("<td style=\"border: 1px solid black;\">").Append(holiday.ChineseName).Append("</td>");
-                sb.Append("<td style=\"border: 1px solid black;\">").Append($"{holiday.HolidayStartDate}--{holiday.HolidayEndDate}").Append("</td>");
-                sb.Append("<td style=\"border: 1px solid black;\">").Append(holiday.CurrentAvailableDuration).Append("</td>");
-                sb.Append("<td style=\"border: 1px solid black;\">").Append(holiday.RemainingTotalDuration).Append("</td>");
-                sb.Append("<td style=\"border: 1px solid black;\">").Append(holiday.HolidayEndDate).Append("</td>");
-                sb.Append("<td style=\"border: 1px solid black;\">").Append("").Append("</td>");
-                sb.Append("</tr>");
-            }
-            else //增加上一区间和本区间两条记录
-            {
-                double previousRemaining = 0.0, currentRemaining = 0.0;
-                if (holiday.PreviousRemainingDuration + holiday.CurrentAvailableDuration - holiday.RemainingTotalDuration >= holiday.CurrentAvailableDuration)
+                for (int i = 0; i < dt.Columns.Count; i++)
                 {
-                    previousRemaining = holiday.RemainingTotalDuration;
+                    sb.Append("<td style=\"border: 1px solid black; width: 80px;\">").Append(dr[i]).Append("</td>");
                 }
-                else
-                {
-                    previousRemaining = holiday.PreviousRemainingDuration;
-                    currentRemaining = holiday.RemainingTotalDuration - holiday.PreviousRemainingDuration;
-                }
-                sb.Append("<tr>");
-                sb.Append("<td rowspan=\"2\" style=\"border: 1px solid black;\">").Append(holiday.ChineseName).Append("</td>");
-                sb.Append("<td style=\"border: 1px solid black;\">").Append($"{holiday.PreviousStartDate}--{holiday.PreviousEndDate}").Append("</td>");
-                sb.Append("<td style=\"border: 1px solid black;\">").Append(holiday.PreviousAvailableDuration).Append("</td>");
-                sb.Append("<td style=\"border: 1px solid black;\">").Append(previousRemaining).Append("</td>");
-                sb.Append("<td style=\"border: 1px solid black;\">").Append(holiday.PreviousEndDate).Append("</td>");
-                sb.Append("<td style=\"border: 1px solid black;\">").Append(holiday.HolidayEndDate).Append("</td>");
-                sb.Append("</tr>");
-                sb.Append("<tr>");
-                sb.Append("<td style=\"border: 1px solid black;\">").Append($"{holiday.HolidayStartDate}--{holiday.HolidayEndDate}").Append("</td>");
-                sb.Append("<td style=\"border: 1px solid black;\">").Append(holiday.CurrentAvailableDuration).Append("</td>");
-                sb.Append("<td style=\"border: 1px solid black;\">").Append(currentRemaining).Append("</td>");
-                sb.Append("<td style=\"border: 1px solid black;\">").Append(holiday.HolidayEndDate).Append("</td>");
-                sb.Append("<td style=\"border: 1px solid black;\">").Append("").Append("</td>");
                 sb.Append("</tr>");
             }
             sb.Append("</table>");

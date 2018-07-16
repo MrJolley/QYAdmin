@@ -10,6 +10,7 @@ using System.Text;
 using System.IO;
 using QY.Admin.Logic.ViewModels;
 using Newtonsoft.Json;
+using System.Threading.Tasks;
 
 namespace QY.Admin.Controllers
 {
@@ -225,11 +226,14 @@ namespace QY.Admin.Controllers
             {
                 case "annual":
                     List<HolidayDetail> rlt = JsonConvert.DeserializeObject<List<HolidayDetail>>(Request.Form["staffList"]);
-                    var available = rlt.Where(r => r.RemainingTotalDuration > 0 && 
-                    Convert.ToDateTime(r.HolidayEndDate) >= DateTime.Today &&
-                    Convert.ToDateTime(r.HolidayEndDate).Subtract(DateTime.Today).Days <= 122).ToList();
-                    foreach (var item in available)
-                    {
+
+                    Parallel.ForEach(rlt, (item, state) => {
+                        if (item.PaidLeaveRemainingHours == 0 ||
+                        item.HolidayStartDate > DateTime.Now ||
+                        item.HolidayEndDate < DateTime.Now)
+                        {
+                            return;
+                        }
                         string htmlData = string.Empty;
                         try
                         {
@@ -239,7 +243,7 @@ namespace QY.Admin.Controllers
                         {
                             result.FailureList.Add(item.ChineseName);
                             result.FailureMsg.Add(ex.Message);
-                            continue;
+                            return;
                         }
                         try
                         {
@@ -251,7 +255,7 @@ namespace QY.Admin.Controllers
                             result.FailureList.Add(item.ChineseName);
                             result.FailureMsg.Add(ex.Message);
                         }
-                    }
+                    });
                     break;
                 case "transfer":
                     List<UserTransferList> lutl = JsonConvert.DeserializeObject<List<UserTransferList>>(Request.Form["staffList"]);

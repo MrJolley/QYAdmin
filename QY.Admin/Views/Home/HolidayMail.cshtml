@@ -35,13 +35,13 @@
                 <table class="table table-bordered table-hover fixed-holiday">
                     <thead>
                         <tr>
-                            <td rowspan="2">序号</td>
-                            <td rowspan="2">是否选中</td>
-                            <td rowspan="2">姓名</td>
+                            <td rowspan=2 style="padding-top:26px;">是否选中</td>
+                            <td rowspan="2" style="padding-top:26px;">姓名</td>
                             <td colspan="2">年假区间</td>
-                            <td rowspan="2">上一区间未休计入本区间(h)</td>
-                            <td rowspan="2">本区间应休年假(h)</td>
-                            <td rowspan="2">剩余年假(h)</td>
+                            <td rowspan="2" style="padding-top:26px;">上一区间未休计入本区间(h)</td>
+                            <td rowspan="2" style="padding-top:26px;">本区间应休年假(h)</td>
+                            <td rowspan="2" style="padding-top:26px;">剩余年假(h)</td>
+                            <td rowspan="2" style="padding-top:26px;">当前可使用年假(h)</td>
                         </tr>
                         <tr>
                             <td>起始日期</td>
@@ -50,16 +50,16 @@
                     </thead>
                     <tbody>
                         <tr ng-repeat="item in UserHolidayDetail | filter: searchKeyword">
-                            <td ng-bind="$index+1"></td>
                             <td ng-click="item.checked = !item.checked;">
                                 <input type="checkbox" ng-model="item.checked" ng-click="PreventPop($event);" />
                             </td>
                             <td ng-bind="item.ChineseName"></td>
                             <td ng-bind="item.HolidayStartDate"></td>
                             <td ng-bind="item.HolidayEndDate"></td>
-                            <td ng-bind="item.PreviousRemainingDuration"></td>
-                            <td ng-bind="item.CurrentAvailableDuration"></td>
-                            <td ng-bind="item.RemainingTotalDuration"></td>
+                            <td ng-bind="item.BeforePaidLeaveRemainingHours"></td>
+                            <td ng-bind="item.CurrentPaidLeaveTotalHours"></td>
+                            <td ng-bind="item.PaidLeaveRemainingHours"></td>
+                            <td ng-bind="item.CurrentAvailableRemainingHours"></td>
                         </tr>
                     </tbody>
                 </table>
@@ -111,7 +111,7 @@
     <script type="text/javascript" src="~/Scripts/alertify.js"></script>
     <script>
         var app = angular.module('holidayMail', []);
-        app.controller('excelCheckCtrl', ['$http', '$scope', function ($http, $scope) {
+        app.controller('excelCheckCtrl', ['$http', '$scope', "$filter", function ($http, $scope, $filter) {
             $scope.isDisplay = false;
             $scope.holidayContainer = false;
             $scope.UserHolidayDetail = [];
@@ -146,8 +146,11 @@
                         $scope.holidayContainer = true;
                         $scope.errorMsg = '';
                         $scope.UserHolidayDetail = response.data.data;
+                        var reg = /.*Date\((.*)\).*/;
                         angular.forEach($scope.UserHolidayDetail, function (item) {
                             item.checked = true;
+                            item.HolidayStartDate = $filter('date')(new Date(Number(item.HolidayStartDate.match(reg)[1])), 'yyyy-MM-dd');
+                            item.HolidayEndDate = $filter('date')(new Date(Number(item.HolidayEndDate.match(reg)[1])), 'yyyy-MM-dd');
                         });
                     } else {
                         $scope.isDisplay = false;

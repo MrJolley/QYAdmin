@@ -88,6 +88,36 @@ namespace QY.Admin.Logic
                         ErrorMsg = "当前文件数据格式不正确，未在规定范围内找到数据列'剩余年假'"
                     };
                 }
+                //读取特定的列数据，包括姓名，年假区间，上期/本期剩余年假时间，总共剩余年假
+                int nameCol = 0, beforeRegionCol = 0, curRegionCol = 0, usedCol = 0;
+                foreach (var item in title.Cells)
+                {
+                    string val = item.ToString().Trim();
+                    if (val.Equals("姓名"))
+                    {
+                        nameCol = item.ColumnIndex;
+                    }
+                    else if (val.Equals("年假区间") && item.ColumnIndex < 4)
+                    {
+                        beforeRegionCol = item.ColumnIndex;
+                    }
+                    else if (val.Equals("年假区间") && item.ColumnIndex > 4)
+                    {
+                        curRegionCol = item.ColumnIndex;
+                    }
+                    else if (val.StartsWith("已使用年假"))
+                    {
+                        usedCol = item.ColumnIndex;
+                    }
+                }
+                if (nameCol == 0 || beforeRegionCol == 0 || curRegionCol == 0 || usedCol == 0)
+                {
+                    return new HolidayResult()
+                    {
+                        hasError = true,
+                        ErrorMsg = "当前文件数据格式不正确，请确保标题行含有'姓名'，'年假区间'，'剩余年假'列"
+                    };
+                }
                 //读取所有年假信息，默认title为两行数据
                 int cols = title.LastCellNum;
                 var users = new UserService().GetAllUsers().ToList();
@@ -97,53 +127,44 @@ namespace QY.Admin.Logic
                     try
                     {
                         IRow sRow = sheet.GetRow(row);
-                        name = sRow.GetCell(1, MissingCellPolicy.CREATE_NULL_AS_BLANK).ToString().Trim();
-                        bool nameExt = name != null && name != ""; //名字单元格不为空
-                                                                   //确保第一个名字单元格存在
-                        if (nameExt)
+                        ICell sCell = sRow.GetCell(nameCol);
+                        if (sCell != null)
                         {
+                            name = sRow.GetCell(nameCol, MissingCellPolicy.CREATE_NULL_AS_BLANK).ToString().Trim();
+                            if (string.IsNullOrWhiteSpace(name))
+                            {
+                                break;
+                            }
                             if (users.Where(r => r.ChineseName == name).Count() == 0)
                             {
                                 throw new InvalidDataException("user chinese name not match the special data in database");
                             }
-                            //读取所有基本信息详情
-                            var specialCol = sRow.GetCell(totalRemainingIdx, MissingCellPolicy.CREATE_NULL_AS_BLANK);
-                            double val = 0.0;
-                            if (specialCol.CellType == CellType.Formula)
-                            {
-                                val = specialCol.NumericCellValue;
-                            }
-                            else
-                            {
-                                val = string.IsNullOrWhiteSpace(specialCol.ToString().Trim()) ? 0 : double.Parse(specialCol.ToString().Trim());
-                            }
-                            var pr = sRow.GetCell(8, MissingCellPolicy.CREATE_NULL_AS_BLANK).ToString().Trim();
-                            var dds = sRow.GetCell(9, MissingCellPolicy.CREATE_NULL_AS_BLANK).ToString().Trim();
-                            var holiday = new HolidayDetail()
-                            {
-                                ChineseName = name,
-                                HolidayStartDate = DateTime.Parse(sRow.GetCell(6).ToString().Trim()).ToString("yyyy-MM-dd"),
-                                HolidayEndDate = DateTime.Parse(sRow.GetCell(7).ToString().Trim()).ToString("yyyy-MM-dd"),
-                                PreviousRemainingDuration = string.IsNullOrWhiteSpace(pr) ? 0 : double.Parse(pr),
-                                CurrentAvailableDuration = double.Parse(sRow.GetCell(9, MissingCellPolicy.CREATE_NULL_AS_BLANK).ToString().Trim()),
-                                //PreviousUsedDuration = sRow.AsEnumerable().Where(r => r.RowIndex > 6 && r.RowIndex < 19).Sum(r => r.NumericCellValue), //上一区间idx between 7 and 18
-                                //CurrentUsedDuration = sRow.AsEnumerable().Where(r => r.RowIndex > 18 && r.RowIndex < 31).Sum(r => r.NumericCellValue), //当前区间idx between 19 and 30
-                                RemainingTotalDuration = val,
-                                Email = users.Where(r => r.ChineseName == name).Select(r => r.EmailAddress).First()
-                            };
-                            if (holiday.PreviousRemainingDuration > 0)
-                            {
-                                holiday.PreviousStartDate = DateTime.Parse(sRow.GetCell(3).ToString().Trim()).ToString("yyyy-MM-dd");
-                                holiday.PreviousEndDate = DateTime.Parse(sRow.GetCell(4).ToString().Trim()).ToString("yyyy-MM-dd");
-                                holiday.PreviousAvailableDuration = double.Parse(sRow.GetCell(5, MissingCellPolicy.CREATE_NULL_AS_BLANK).ToString().Trim());
-                            }
-                            result.Add(holiday
-                                );
                         }
-                        else
+                        //读取所有基本信息详情
+                        var remainingHolidayCol = sRow.GetCell(totalRemainingIdx, MissingCellPolicy.CREATE_NULL_AS_BLANK);
+                        var usedHolidayCol = sRow.GetCell(usedCol, MissingCellPolicy.CREATE_NULL_AS_BLANK);
+                        double remaining = remainingHolidayCol.CellType == CellType.Formula ? 
+                            remainingHolidayCol.NumericCellValue : double.Parse(remainingHolidayCol.ToString().Trim());
+                        double used = usedHolidayCol.CellType == CellType.Formula ?
+                            usedHolidayCol.NumericCellValue : double.Parse(usedHolidayCol.ToString().Trim());
+
+                        var holiday = new HolidayDetail()
                         {
-                            break; //读取空数据时，默认所有有效记录结束
+                            ChineseName = name,
+                            Email = users.Where(r => r.ChineseName == name).Select(r => r.EmailAddress).First(),
+                            HolidayStartDate = DateTime.Parse(sRow.GetCell(curRegionCol).ToString().Trim()),
+                            HolidayEndDate = DateTime.Parse(sRow.GetCell(curRegionCol + 1).ToString().Trim()),
+                            BeforePaidLeaveRemainingHours = double.Parse(sRow.GetCell(curRegionCol + 2, MissingCellPolicy.CREATE_NULL_AS_BLANK).ToString().Trim()),
+                            CurrentPaidLeaveTotalHours = double.Parse(sRow.GetCell(curRegionCol + 3, MissingCellPolicy.CREATE_NULL_AS_BLANK).ToString().Trim()),
+                            CurrentUsedPaidLeaveHours = used,
+                            PaidLeaveRemainingHours = remaining
+                        };
+                        if (holiday.BeforePaidLeaveRemainingHours > 0)
+                        {
+                            holiday.PreviousStartDate = DateTime.Parse(sRow.GetCell(beforeRegionCol).ToString().Trim());
+                            holiday.PreviousEndDate = DateTime.Parse(sRow.GetCell(beforeRegionCol + 1).ToString().Trim());
                         }
+                        result.Add(holiday);
                     }
                     catch (Exception ex)
                     {
