@@ -33,10 +33,12 @@ namespace QY.Admin.Logic.ViewModels
             get
             {
                 double availableMonth = (curDate.Year - HolidayStartDate.Year) * 12 + (curDate.Month - HolidayStartDate.Month) + 1;
+                int sMonth = CurrentPaidLeaveTotalHours == 24 ? 6 : 12; // 新人法定休假为24小时，且半年有效期
                 double num = curDate < HolidayStartDate ? 0 :
-                    (curDate > HolidayEndDate ? 12 :
-                    (availableMonth > 12 ? 12 : availableMonth));
-                var legalRemaining = Math.Round((num > 6 ? BeforePaidLeaveRemainingHours : BeforePaidLeaveRemainingHours / 2) + CurrentPaidLeaveTotalHours / 12 * num, 2);
+                    (curDate > HolidayEndDate ? sMonth :
+                    (availableMonth > sMonth ? sMonth : availableMonth));
+                var legalRemaining = Math.Round((num > 6 ? BeforePaidLeaveRemainingHours : BeforePaidLeaveRemainingHours / 2) +
+                     CurrentPaidLeaveTotalHours / sMonth * num, 2);
                 return legalRemaining > CurrentUsedPaidLeaveHours ? (legalRemaining - CurrentUsedPaidLeaveHours) : 0;
             }
         }
